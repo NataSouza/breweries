@@ -30,18 +30,19 @@ O primeiro job é um lambda responsável por realizar a extração dos dados da 
 Dentro desse e dos demais Jobs existe um processo de retry e um processo notificação de erro:
 
 ![Imagem 2](https://github.com/user-attachments/assets/94166a74-63df-4acc-b42b-08d804de9911)
+![Imagem 3](https://github.com/user-attachments/assets/44ec316e-ad38-4af5-8f1c-23b82bfaa572)
 
 Caso haja algum erro no Lambda que se encaixe em algum dos perfis de exceções, o processo irá realizar um intervalo de 2 segundos e tentar a execução novamente. Cada nova execução vai esperar o dobro do tempo esperado pela última execução e serão executadas um total de 3 tentativas até que o processo falhe definitivamente.
 
 Se o job falhar definitivamente o processo entra na segunda tratativa de catch error, como mostrado na figura abaixo:
 
-![Imagem 3](https://github.com/user-attachments/assets/44ec316e-ad38-4af5-8f1c-23b82bfaa572)
+![Imagem 4](https://github.com/user-attachments/assets/688bb663-e2c7-471b-a92a-8d00da6b6fd9)
 
 Nesse momento o job envia todas as mesagens de erro para o step “Informa_erro_email” que é um tópico de SNS que por opção nesse caso envia um e-mail para os integrantes cadastrados com todas as mensagens de erro capturadas no processo acima. 
 
 Segue um exemplo do tópico de SNS:
 
-![Imagem 4](https://github.com/user-attachments/assets/688bb663-e2c7-471b-a92a-8d00da6b6fd9)
+![Imagem 5](https://github.com/user-attachments/assets/eda78974-560b-4dc7-b689-f9e4e6cff69e)
 
 Com o tópico de SNS é possível encaminhar també SMS, ou enviar gatilhos para outros processos como lambda para iniciar novos processos de tratativa de erros com python.
 
@@ -54,7 +55,7 @@ O Amazon DynamoDB é um banco de dados de chave-valor NoSQL, projetado para exec
 
 Dentro do Dynamo foi criada a tabela: “parameters” e dentro dessa tabela temos a PK (partition-key) e os campos de heathcheck:
 
-![Imagem 5](https://github.com/user-attachments/assets/eda78974-560b-4dc7-b689-f9e4e6cff69e)
+![Imagem 6](https://github.com/user-attachments/assets/6437c939-79c4-47a7-87ca-b3a0f24826ff)
 
 Toda vez que algum dos Jobs executa com sucesso, um timestamp do fim da execução é incluído nessa tabela. Dessa forma é possível acompanhar se o job executou com sucesso no último batch por exemplo.
 
@@ -62,7 +63,7 @@ Dentro dos códigos existe também um controle de execução. Pensando em um mod
 
 Exemplo de trativa em código:
 
-![Imagem 6](https://github.com/user-attachments/assets/6437c939-79c4-47a7-87ca-b3a0f24826ff)
+![Imagem 7](https://github.com/user-attachments/assets/35f2308e-bed0-44a9-8523-765788bba7cd)
 
 
 ## Storage de dados(S3)
@@ -71,18 +72,18 @@ Nos storages foram criados 3 buckets (imbev-bronze, imbev-silver, imbev-gold) es
 
 Também foram criados outros 2 buckets: “athena-results-breweries” (utilizado para controle de consultas do Athena) e aws-glue-assets-339665883547-us-east-1 (utilizado para controle de arquivos do Glue).
 
-![Imagem 7](https://github.com/user-attachments/assets/35f2308e-bed0-44a9-8523-765788bba7cd)
+![Imagem 8](https://github.com/user-attachments/assets/061e3e73-9d0f-49a5-afc7-3cdbe45c626f)
 
 
 ## Camada bronze (Lambda)
 
 Para a função lambda foi necessário subir um modulo da biblioteca requests do python como uma layer pois essa biblioteca não é nativa na AWS:
 
-![Imagem 8](https://github.com/user-attachments/assets/061e3e73-9d0f-49a5-afc7-3cdbe45c626f)
+![Imagem 9](https://github.com/user-attachments/assets/64aa26f6-9f8d-4b89-a0cc-e6c5074c7787)
 
 Com essa biblioteca foi possível realizar a extração dos dados da API e transferi-las para o S3 como JSON, sem nenhuma trativa, mantendo apenas o dado original:
 
-![Imagem 9](https://github.com/user-attachments/assets/64aa26f6-9f8d-4b89-a0cc-e6c5074c7787)
+![Imagem 10](https://github.com/user-attachments/assets/b7b64b55-c088-44e0-8389-dff2490e1e35)
 
 
 ## Camada silver (Glue ETL job)
@@ -91,11 +92,11 @@ Esse job tem como principal objetivo processar o arquivo jsno gerado na camada b
 
 Os dados são inseridos no bucket imbev-silver:
 
-![Imagem 10](https://github.com/user-attachments/assets/b7b64b55-c088-44e0-8389-dff2490e1e35)
+![Imagem 11](https://github.com/user-attachments/assets/045bfafc-ea95-4a24-b0ad-bfaa40fb0992)
 
 Após a inserção os dados ficam visíveis no Athena, graças aos datatypes da tabela inseridos no Lakeformation (database layer_silver):
 
-![Imagem 11](https://github.com/user-attachments/assets/045bfafc-ea95-4a24-b0ad-bfaa40fb0992)
+![Imagem 12](https://github.com/user-attachments/assets/2dc4cc23-2de6-4e3d-b662-1cfe7335e0e9)
 
 Nessa tabela os dados são persistidos sem nenhum tratamento de anonimização. A ideia é que tenha acesso a ela, apenas pessoas autorizadas a trabalharem com dados sensíveis.
 
@@ -108,11 +109,11 @@ OBS: Não foi realizado a anonimização de todos os dados sensíveis da tabela 
 
 Os dados são inseridos no bucket imbev-silver (anonimizados):
 
-![Imagem 12](https://github.com/user-attachments/assets/2dc4cc23-2de6-4e3d-b662-1cfe7335e0e9)
+![Imagem 13](https://github.com/user-attachments/assets/1c175935-fec4-460e-ae15-2d5f8bf29848)
 
 Os campos name e phone estão anonimizados com hash sha256 (database layer_silver):
 
-![Imagem 13](https://github.com/user-attachments/assets/1c175935-fec4-460e-ae15-2d5f8bf29848)
+![Imagem 14](https://github.com/user-attachments/assets/9f601b13-0082-4e58-8671-05218556d5c3)
 
 A ideia é que tenha acesso a essa tabela qualquer desenvolvedor, pois os dados sensíveis serão anonimizados
 
@@ -130,8 +131,8 @@ O job da camada gold tem por objetivo criar uma visão agrupada de cervejarias p
 
 Os dados são inseridos no bucket imbev-gold:
 
-![Imagem 14](https://github.com/user-attachments/assets/9f601b13-0082-4e58-8671-05218556d5c3)
+![Imagem 15](https://github.com/user-attachments/assets/9fd5140b-73a8-4231-bb79-017092973533)
 
 Os dados também estão visíveis no Athena (database layer_gold):
 
-![Imagem 15](https://github.com/user-attachments/assets/9fd5140b-73a8-4231-bb79-017092973533)
+![Imagem 16](https://github.com/user-attachments/assets/22051209-f48f-48c2-aed2-5cb076d2a64a)
